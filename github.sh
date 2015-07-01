@@ -1,0 +1,151 @@
+#!/bin/bash
+# Backup GitHub repositories
+# Eugene Myazin http://myazin.ru
+
+# try to load configuration file
+if [ -r ~/.backup_github ]; then
+  . ~/.backup_github
+fi
+
+#
+# CONFIGURATION
+#
+CONF_USERNAME=${CONF_USERNAME-""}               # the username of a GitHub account
+CONF_PASSWORD=${CONF_PASSWORD-""}               # the password for that account
+CONF_ORGANIZATION=${CONF_ORGANIZATION-""}           # GitHub organization to backup, if empty backup user's repos
+CONF_LOGFILE=${CONF_LOGFILE-""}                # can be an empty
+CONF_BACKUP_DIR=${CONF_BACKUP_DIR-"backup"}     # directory for backup files
+CONF_GITHUB_VERBOSE=${CONF_GITHUB_VERBOSE-true} # verbose output
+CONF_WITH_FORKS=${CONF_WITH_FORKS-true}        # backup user repository with forks
+
+GIT="$(which git)"
+CURL="$(which curl)"
+DATE="$(which date)"
+MKDIR="$(which mkdir)"
+AWK="$(which awk)"
+SED="$(which sed)"
+PHP="$(which php)"
+GREP="$(which grep)"
+
+DATETIME=`${DATE} "+%Y%m%d-%H%M"`
+CMD_7Z="$(which 7z) a -mx=9 "
+
+#
+# SOME FUNCTIONS
+#
+function archivate
+{
+    ${CMD_7Z} $1.7z $1 > /dev/null 2>&1 && $(which rm) -rf $1
+}
+
+# Show log line and if backup file defines fill it
+function logln
+{
+    logdt=`$DATE "+%Y-%m-%d %H:%M:%S"`
+    logstring="$logdt: $1"
+
+    (! ${CONF_GITHUB_VERBOSE}) || echo -e $logstring;
+    if [ ! -z "$CONF_LOGFILE" ]; then
+        echo -e $logstring >> $CONF_LOGFILE
+    fi
+}
+
+# Silent run
+function silent {
+  "$@" >&- 2>&-
+}
+
+function usage() {
+    SCRIPT=`basename ${BASH_SOURCE[0]}`
+
+    #Set fonts for Help.
+    NORM=`tput sgr0`
+    BOLD=`tput bold`
+    REV=`tput smso`
+
+    echo -e "\\nHelp documentation for ${BOLD}${SCRIPT}${NORM}\\n"
+    echo -e "Basic usage: ${BOLD}$SCRIPT -u <username> -p <password>${NORM}\\n"
+    echo "Command line switches are optional. The following switches are recognized."
+    echo -e "\\t${BOLD}-u${NORM}    Github username"
+    echo -e "\\t${BOLD}-p${NORM}    Github password"
+    echo -e "\\t${BOLD}-f${NORM}    Include forked repos"
+    echo -e "\\t${BOLD}-o${NORM}    Github organization"
+    echo -e "\\t${BOLD}-b${NORM}    Backup directory"
+    echo -e "\\t${BOLD}-l${NORM}    Log file name"
+    echo -e "\\t${BOLD}-v${NORM}    Show output"
+    echo -e ""
+    echo -e "\t${BOLD}$SCRIPT -u <username> -p <password> -f -b /backup/my-repos -l /var/log/backup/gitgub.log -v${NORM}\\n"
+    exit 1;
+}
+
+while getopts ":u:p:o:b:l:vfh" o; do
+    case "${o}" in
+        u)
+            CONF_USERNAME=${OPTARG}
+            ;;
+        p)
+            CONF_PASSWORD=${OPTARG}
+            ;;
+        o)
+            CONF_ORGANIZATION=${OPTARG}
+            ;;
+        b)
+            CONF_BACKUP_DIR=${OPTARG}
+            ;;
+        l)
+            CONF_LOGFILE=${OPTARG}
+            ;;
+        v)
+            CONF_GITHUB_VERBOSE=true
+            ;;
+        f)
+            CONF_WITH_FORKS=true
+            ;;
+        h)
+            usage
+            exit;
+            ;;
+        *)
+            usage
+            exit;
+            ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ -z "${CONF_USERNAME}" ] || [ -z "${CONF_PASSWORD}" ]; then
+    usage
+fi
+
+#
+# Let's go
+#
+logln "start"
+
+if [ -n "${CONF_ORGANIZATION}" ]; then
+    REPO_OWNER=${CONF_ORGANIZATION}
+    REPO_LIST_URL="https://api.github.com/orgs/${CONF_ORGANIZATION}/repos"
+else
+    REPO_OWNER=${CONF_USERNAME}
+    REPO_LIST_URL="https://api.github.com/users/meniam/repos"
+fi
+
+if [ "$CONF_WITH_FORKS" = true ]; then
+    REPOS=`${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} -i ${REPO_LIST_URL} -q | ${GREP} "\"full_name\"" | ${AWK} -F': "' '{print $2}' | ${SED} -e 's/",//g'`
+else
+    REPOS=`${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} ${REPO_LIST_URL} -q | ${PHP} -r 'foreach(json_decode(file_get_contents("php://stdin"), true) as $i){if (!isset($i["fork"])) { echo isset($i["full_name"]) ? $i["full_name"]."\n" : ""; }}'`
+fi
+
+dt=`${DATE} "+%Y%m%d-%H%M"`
+${MKDIR} -p ${CONF_BACKUP_DIR}
+
+for REPO in $REPOS; do
+    REPONAME=`echo ${REPO} | tr \\/ -`
+    logln "Backup ${REPONAME}"
+    ${GIT} clone --quiet --mirror git@github.com:${REPO}.git "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git" && archivate "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git"
+    silent ${GIT} clone --quiet --mirror git@github.com:${REPO}.wiki.git "${CONF_BACKUP_DIR}/${REPO_OWNER}-${REPONAME}.wiki-${dt}.git" && silent archivate "${CONF_BACKUP_DIR}/${REPONAME}.wiki-${dt}.git" 2>&1
+    ${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} https://api.github.com/repos/${REPO}/issues -q > "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}" && archivate "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}"
+done
+
+logln "end"

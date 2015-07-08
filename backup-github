@@ -134,7 +134,7 @@ fi
 if [ "$CONF_WITH_FORKS" = true ]; then
     REPOS=`${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} -i ${REPO_LIST_URL} -q | ${GREP} "\"full_name\"" | ${AWK} -F': "' '{print $2}' | ${SED} -e 's/",//g'`
 else
-    REPOS=`${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} ${REPO_LIST_URL} -q | ${PHP} -r 'foreach(json_decode(file_get_contents("php://stdin"), true) as $i){if (!isset($i["fork"])) { echo isset($i["full_name"]) ? $i["full_name"]."\n" : ""; }}'`
+    REPOS=`${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} ${REPO_LIST_URL} -q | ${PHP} -r 'foreach(json_decode(file_get_contents("php://stdin"), true) as $i){if (!isset($i["fork"]) || $i["fork"] == false) { echo isset($i["full_name"]) ? $i["full_name"]."\n" : ""; }}'`
 fi
 
 dt=`${DATE} "+%Y%m%d-%H%M"`

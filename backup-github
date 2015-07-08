@@ -143,9 +143,9 @@ ${MKDIR} -p ${CONF_BACKUP_DIR}
 for REPO in $REPOS; do
     REPONAME=`echo ${REPO} | tr \\/ -`
     logln "Backup ${REPONAME}"
-    ${GIT} clone --quiet --mirror git@github.com:${REPO}.git "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git" && archivate "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git"
-    silent ${GIT} clone --quiet --mirror git@github.com:${REPO}.wiki.git "${CONF_BACKUP_DIR}/${REPO_OWNER}-${REPONAME}.wiki-${dt}.git" && silent archivate "${CONF_BACKUP_DIR}/${REPONAME}.wiki-${dt}.git" 2>&1
-    ${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} https://api.github.com/repos/${REPO}/issues -q > "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}" && archivate "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}"
+    silent ${GIT} clone --quiet --mirror git@github.com:${REPO}.git "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git" && silent archivate "${CONF_BACKUP_DIR}/${REPONAME}-${dt}.git"
+    silent ${GIT} clone --quiet --mirror git@github.com:${REPO}.wiki.git "${CONF_BACKUP_DIR}/${REPO_OWNER}-${REPONAME}.wiki-${dt}.git" && silent archivate "${CONF_BACKUP_DIR}/${REPO_OWNER}-${REPONAME}.wiki-${dt}.git"
+    silent ${CURL} --silent -u ${CONF_USERNAME}:${CONF_PASSWORD} https://api.github.com/repos/${REPO}/issues -q > "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}" && silent archivate "${CONF_BACKUP_DIR}/${REPONAME}.issues-${dt}"
 done
 
 logln "end"

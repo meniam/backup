@@ -12,11 +12,11 @@ fi
 #
 CONF_USERNAME=${CONF_USERNAME-""}               # the username of a GitHub account
 CONF_PASSWORD=${CONF_PASSWORD-""}               # the password for that account
-CONF_ORGANIZATION=${CONF_ORGANIZATION-""}           # GitHub organization to backup, if empty backup user's repos
-CONF_LOGFILE=${CONF_LOGFILE-""}                # can be an empty
+CONF_ORGANIZATION=${CONF_ORGANIZATION-""}       # GitHub organization to backup, if empty backup user's repos
+CONF_LOGFILE=${CONF_LOGFILE-""}                 # can be an empty
 CONF_BACKUP_DIR=${CONF_BACKUP_DIR-"backup"}     # directory for backup files
 CONF_GITHUB_VERBOSE=${CONF_GITHUB_VERBOSE-true} # verbose output
-CONF_WITH_FORKS=${CONF_WITH_FORKS-true}        # backup user repository with forks
+CONF_WITH_FORKS=${CONF_WITH_FORKS-false}        # backup user repository with forks
 
 GIT="$(which git)"
 CURL="$(which curl)"
